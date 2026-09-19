@@ -983,7 +983,11 @@
     <div class="bracket-scroll">
       <div class="bracket" id="koBracket"></div>
     </div>
-    <p class="small-note">Tocá un nombre en cada llave para marcarlo como ganador y avanzarlo a la siguiente ronda. Sin tabla de posiciones: se define todo a eliminación directa.</p>
+    <div class="bcard third-place" id="koThirdSection" style="max-width:340px;" hidden>
+      <div class="blabel">3º puesto (opcional) — perdedores de semis</div>
+      <div id="koThirdMatch"></div>
+    </div>
+    <p class="small-note">Tocá un nombre en cada llave para marcarlo como ganador y avanzarlo a la siguiente ronda. Sin tabla de posiciones: se define todo a eliminación directa. El 3º puesto es opcional.</p>
     <div class="reset-row multi">
       <button class="reset-btn" id="koResetBtn">Reiniciar bracket (mantiene los equipos)</button>
       <button class="reset-btn" id="koResetAllBtn">Reiniciar todo (equipos y bracket)</button>
@@ -1083,7 +1087,7 @@
     const numTeams = 8, playersPerTeam = 3;
     const teams = [];
     for(let i=0;i<numTeams;i++) teams.push(defaultKoTeam(i, playersPerTeam));
-    return { numTeams, playersPerTeam, teams, winners: {} };
+    return { numTeams, playersPerTeam, teams, winners: {}, thirdWinner: null };
   }
 
   function defaultState(){
@@ -1225,7 +1229,7 @@
     });
     state.ko.numTeams = numTeams;
     state.ko.playersPerTeam = playersPerTeam;
-    if(sizeChanged) state.ko.winners = {};
+    if(sizeChanged){ state.ko.winners = {}; state.ko.thirdWinner = null; }
     saveState();
     renderAll();
   }
@@ -1654,6 +1658,8 @@
       mm = Math.floor(mm/2);
       rr++;
     }
+    // si cambia algo hasta las semis, el 3er puesto se define de nuevo
+    if(r <= totalRounds-2) state.ko.thirdWinner = null;
   }
   function koTeamForSlot(r,m,slot){
     if(r===0){
@@ -1727,7 +1733,47 @@
       </div>
     </div>`;
     bracketEl.innerHTML = html;
+    renderKoThird();
   }
+  function koLoser(r,m){
+    const a = koTeamForSlot(r,m,0), b = koTeamForSlot(r,m,1), w = koWinner(r,m);
+    if(!a || !b || !w) return null;
+    return w === a.id ? b : a;
+  }
+  function koThirdSlotHTML(team, selected){
+    if(!team) return `<div class="bslot disabled">A definir</div>`;
+    return `<div class="bslot ${selected?'selected':''}" data-role="third" data-team="${team.id}">
+      <span style="display:inline-flex;align-items:center;gap:8px;">${badgeHTML(team,'sz-xs')}${koDisplayName(team)}</span>
+      <span class="tag">Perdedor semi</span>
+    </div>`;
+  }
+  function renderKoThird(){
+    const sec = document.getElementById('koThirdSection');
+    const lay = koLayout(state.ko.numTeams);
+    if(lay.rounds < 2){ sec.hidden = true; return; }   // con 2 equipos no hay semis
+    sec.hidden = false;
+    const semiRound = lay.rounds - 2;
+    const loserA = koLoser(semiRound, 0);
+    const loserB = koLoser(semiRound, 1);
+    if(state.ko.thirdWinner && !((loserA && loserA.id===state.ko.thirdWinner) || (loserB && loserB.id===state.ko.thirdWinner))){
+      state.ko.thirdWinner = null;
+    }
+    const tw = state.ko.thirdWinner;
+    if(loserA || loserB){
+      document.getElementById('koThirdMatch').innerHTML =
+        koThirdSlotHTML(loserA, !!loserA && tw===loserA.id) + koThirdSlotHTML(loserB, !!loserB && tw===loserB.id);
+    } else {
+      document.getElementById('koThirdMatch').innerHTML = `<div class="bslot disabled">Se define al terminar las semis</div>`;
+    }
+  }
+  document.getElementById('koThirdSection').addEventListener('click', (e)=>{
+    const slot = e.target.closest('.bslot');
+    if(!slot || slot.classList.contains('disabled') || slot.dataset.role !== 'third') return;
+    const id = slot.dataset.team;
+    state.ko.thirdWinner = (state.ko.thirdWinner === id) ? null : id;
+    saveState();
+    renderKoThird();
+  });
   document.getElementById('koBracket').addEventListener('click', (e)=>{
     const slot = e.target.closest('.bslot');
     if(!slot || slot.classList.contains('disabled') || slot.classList.contains('auto') || slot.classList.contains('bye')) return;
@@ -1943,6 +1989,7 @@
   document.getElementById('koResetBtn').addEventListener('click', ()=>{
     if(!confirm('¿Reiniciar el bracket de la eliminatoria directa? (los equipos y nombres se mantienen)')) return;
     state.ko.winners = {};
+    state.ko.thirdWinner = null;
     saveState();
     renderKoBracket();
   });
