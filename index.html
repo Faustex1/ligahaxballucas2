@@ -1792,31 +1792,6 @@
 
       <hr class="divider-line">
 
-      <label class="names-label">Cargar usuario habilitado</label>
-      <p class="rules-line">Cargá el par de nombres: cómo escribe esa persona en el chat (Twitch o Kick) y cómo quiere aparecer en Haxball. Cuando escriba el comando en cualquiera de los dos chats, su nombre de Haxball entra directo a la lista de sorteo.</p>
-      <div class="config-row">
-        <div class="config-field">
-          <label for="regHaxballInput">Usuario de Haxball</label>
-          <input type="text" id="regHaxballInput" maxlength="40" placeholder="ej: Martino" autocomplete="off">
-        </div>
-        <div class="config-field">
-          <label for="regChatInput">Usuario de Twitch/Kick</label>
-          <input type="text" id="regChatInput" maxlength="40" placeholder="ej: martino27" autocomplete="off">
-        </div>
-        <button class="btn btn-primary" type="button" id="regAddBtn">➕ Cargar</button>
-      </div>
-      <p class="status-msg" id="regAddStatus"></p>
-
-      <div class="table-wrap" style="margin-top:18px;">
-        <table class="standings" id="regTable">
-          <thead><tr><th style="text-align:left;">Usuario Haxball</th><th>Usuario Twitch/Kick</th><th></th></tr></thead>
-          <tbody id="regTableBody"></tbody>
-        </table>
-      </div>
-      <p class="rules-line" id="regEmptyNote">Todavía no cargaste ningún usuario habilitado.</p>
-
-      <hr class="divider-line">
-
       <label class="names-label">Importar lista desde Google Sheets</label>
       <p class="rules-line">Hoja fija de la Copa (no se puede cambiar). Tiene que estar compartida como "Cualquiera con el enlace puede ver". Dos columnas: la primera con el usuario de Twitch/Kick, la segunda con el nombre de Haxball. La primera fila (encabezado) se ignora. Se agregan los nuevos y se actualizan los que ya existían (por usuario de chat).</p>
       <div class="config-row">
@@ -1827,11 +1802,12 @@
         <button class="btn btn-primary" type="button" id="regSheetBtn">📥 Importar desde Sheets</button>
       </div>
       <p class="status-msg" id="regSheetStatus"></p>
+      <p class="rules-line" id="regCountNote" style="margin-top:10px;"><b>Usuarios cargados:</b> <span id="regCount">0</span></p>
 
       <hr class="divider-line">
 
       <label class="names-label">Auto-anotación desde el chat de Twitch</label>
-      <p class="rules-line">Se conecta en modo solo-lectura al chat de tu canal (no hace falta token ni app de desarrollador). Cuando alguien escribe el comando, si su usuario de Twitch coincide con un usuario de chat que ya cargaste arriba, su nombre de Haxball entra directo a la lista de sorteo. Dejá esta pestaña abierta mientras esté conectado.</p>
+      <p class="rules-line">Se conecta en modo solo-lectura al chat de tu canal (no hace falta token ni app de desarrollador). Cuando alguien escribe el comando, si su usuario de Twitch coincide con un usuario de chat que ya importaste desde la hoja, su nombre de Haxball entra directo a la lista de sorteo. Dejá esta pestaña abierta mientras esté conectado.</p>
       <div class="config-row">
         <div class="config-field">
           <label for="twitchChannelInput">Canal de Twitch</label>
@@ -1853,7 +1829,7 @@
       <hr class="divider-line">
 
       <label class="names-label">Auto-anotación desde el chat de Kick (vía el puente)</label>
-      <p class="rules-line">Usa el puente (Cloudflare Worker + Botrix) para escuchar el comando en el chat de Kick. Cuando alguien lo escribe, si su usuario de Kick coincide con un usuario de chat que ya cargaste arriba, su nombre de Haxball entra directo a la lista de sorteo — mirá las instrucciones que te pasé aparte.</p>
+      <p class="rules-line">Usa el puente (Cloudflare Worker + Botrix) para escuchar el comando en el chat de Kick. Cuando alguien lo escribe, si su usuario de Kick coincide con un usuario de chat que ya importaste desde la hoja, su nombre de Haxball entra directo a la lista de sorteo — mirá las instrucciones que te pasé aparte.</p>
       <div class="config-row">
         <div class="config-field">
           <label for="kickWorkerInput">URL del puente (Cloudflare Worker)</label>
@@ -4123,19 +4099,8 @@
     }catch(e){ /* si falla, el próximo cambio o el próximo connect() lo vuelve a intentar */ }
   }
   function renderRegistro(){
-    const body = document.getElementById('regTableBody');
-    if(!body) return;
-    const list = state.registro.usuarios;
-    document.getElementById('regEmptyNote').hidden = list.length > 0;
-    body.innerHTML = list.map(u=>{
-      return '<tr>'
-        + '<td class="name">' + esc(u.haxball || '') + '</td>'
-        + '<td>' + esc(u.chat || '') + '</td>'
-        + '<td>'
-          + '<button class="btn btn-small btn-danger reg-del-btn" type="button" data-id="' + u.id + '">Borrar</button>'
-        + '</td>'
-        + '</tr>';
-    }).join('');
+    const countEl = document.getElementById('regCount');
+    if(countEl) countEl.textContent = state.registro.usuarios.length;
     const chk = document.getElementById('regOpenToggle');
     chk.checked = !!state.registro.open;
     document.getElementById('regOpenLabel').textContent = state.registro.open ? 'Inscripciones abiertas' : 'Inscripciones cerradas';
@@ -4146,33 +4111,6 @@
     saveState();
     renderRegistro();
     syncKickConfig();
-  });
-  document.getElementById('regAddBtn').addEventListener('click', ()=>{
-    const haxballInput = document.getElementById('regHaxballInput');
-    const chatInput = document.getElementById('regChatInput');
-    const statusEl = document.getElementById('regAddStatus');
-    const haxball = haxballInput.value.trim();
-    const chat = chatInput.value.trim();
-    statusEl.classList.remove('warn');
-    if(!haxball || !chat){ statusEl.textContent = 'Completá los dos nombres.'; statusEl.classList.add('warn'); return; }
-    if(state.registro.usuarios.some(u=> (u.chat||'').toLowerCase() === chat.toLowerCase())){ statusEl.textContent = 'Ya existe un usuario cargado con ese usuario de chat.'; statusEl.classList.add('warn'); return; }
-    state.registro.usuarios.push({ id:newRegId(), haxball:haxball.slice(0,40), chat:chat.slice(0,40) });
-    haxballInput.value = '';
-    chatInput.value = '';
-    statusEl.textContent = 'Usuario cargado.';
-    saveState();
-    renderRegistro();
-    syncKickConfig();
-  });
-  document.getElementById('regTableBody').addEventListener('click', async (e)=>{
-    const del = e.target.closest('.reg-del-btn');
-    if(del){
-      if(!(await askConfirm('¿Borrar este usuario de la lista de habilitados?', 'Sí, borrar'))) return;
-      state.registro.usuarios = state.registro.usuarios.filter(u=> u.id !== del.dataset.id);
-      saveState();
-      renderRegistro();
-      syncKickConfig();
-    }
   });
   // ---- Importar usuarios habilitados desde un link de Google Sheets ----
   (function regSheetImport(){
@@ -4253,7 +4191,7 @@
         saveState();
         renderRegistro();
         syncKickConfig();
-        statusEl.textContent = `Listo — ${agregados} agregados, ${actualizados} actualizados` + (invalidas ? `, ${invalidas} filas ignoradas por datos incompletos` : '') + '.';
+        statusEl.textContent = `Usuarios cargados: ${state.registro.usuarios.length} (${agregados} nuevos, ${actualizados} actualizados)` + (invalidas ? `, ${invalidas} filas ignoradas por datos incompletos` : '') + '.';
       } catch(err){
         statusEl.textContent = 'No se pudo leer la hoja. Revisá el link y que esté compartida públicamente.';
         statusEl.classList.add('warn');
