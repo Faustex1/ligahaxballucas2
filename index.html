@@ -1811,14 +1811,13 @@
 
       <hr class="divider-line">
 
-      <label class="names-label">Importar lista desde Google Sheets</label>
-      <p class="rules-line">Hoja fija de la Copa (no se puede cambiar). Tiene que estar compartida como "Cualquiera con el enlace puede ver". Dos columnas: la primera con el usuario de Twitch/Kick, la segunda con el nombre de Haxball. La primera fila (encabezado) se ignora. Se agregan los nuevos y se actualizan los que ya existían (por usuario de chat).</p>
+      <label class="names-label">Lista de habilitados (Google Sheets, sincronizada automáticamente)</label>
+      <p class="rules-line">Hoja fija de la Copa (no se puede cambiar). Tiene que estar compartida como "Cualquiera con el enlace puede ver". Dos columnas: la primera con el usuario de Twitch/Kick, la segunda con el nombre de Haxball. La primera fila (encabezado) se ignora. Está siempre conectada y se actualiza sola cada 30 segundos: se agregan los nuevos, se actualizan los cambios y se sacan los que borres de la hoja (por usuario de chat).</p>
       <div class="config-row">
         <div class="config-field">
           <label for="regSheetInput">Link de Google Sheets</label>
           <input type="text" id="regSheetInput" value="https://docs.google.com/spreadsheets/d/1EQXqm2U75sxcOqUfLQfnHr95SkE0n8vhiuqE8lKXH_4/edit?usp=sharing" readonly>
         </div>
-        <button class="btn btn-primary" type="button" id="regSheetBtn">📥 Importar desde Sheets</button>
       </div>
       <p class="status-msg" id="regSheetStatus"></p>
       <p class="rules-line" id="regCountNote" style="margin-top:10px;"><b>Usuarios cargados:</b> <span id="regCount">0</span></p>
@@ -1826,7 +1825,7 @@
       <hr class="divider-line">
 
       <label class="names-label">Auto-anotación desde el chat de Twitch</label>
-      <p class="rules-line">Se conecta en modo solo-lectura al chat de tu canal (no hace falta token ni app de desarrollador). Cuando alguien escribe el comando, si su usuario de Twitch coincide con un usuario de chat que ya importaste desde la hoja, su nombre de Haxball entra directo a la lista de sorteo. Dejá esta pestaña abierta mientras esté conectado.</p>
+      <p class="rules-line">Se conecta en modo solo-lectura al chat de tu canal (no hace falta token ni app de desarrollador). Cuando alguien escribe el comando, si su usuario de Twitch coincide con un usuario de chat que ya importaste desde la hoja, su nombre de Haxball entra directo a la lista de sorteo. Se conecta sola al abrir la página; dejá esta pestaña abierta.</p>
       <div class="config-row">
         <div class="config-field">
           <label for="twitchChannelInput">Canal de Twitch</label>
@@ -1836,8 +1835,6 @@
           <label for="twitchCmdInput">Comando</label>
           <input type="text" id="twitchCmdInput" maxlength="20" value="!entrar" autocomplete="off" spellcheck="false" readonly>
         </div>
-        <button class="btn btn-primary" type="button" id="twitchConnectBtn">🔌 Conectar</button>
-        <button class="btn btn-small btn-danger" type="button" id="twitchDisconnectBtn" hidden>Desconectar</button>
       </div>
       <p class="status-msg" id="twitchStatus"></p>
       <div id="twitchLogWrap" hidden style="margin-top:10px;">
@@ -1848,7 +1845,7 @@
       <hr class="divider-line">
 
       <label class="names-label">Auto-anotación desde el chat de Kick (vía el puente)</label>
-      <p class="rules-line">Usa el puente (Cloudflare Worker + Botrix) para escuchar el comando en el chat de Kick. Cuando alguien lo escribe, si su usuario de Kick coincide con un usuario de chat que ya importaste desde la hoja, su nombre de Haxball entra directo a la lista de sorteo — mirá las instrucciones que te pasé aparte.</p>
+      <p class="rules-line">Usa el puente (Cloudflare Worker + Botrix) para escuchar el comando en el chat de Kick. Cuando alguien lo escribe, si su usuario de Kick coincide con un usuario de chat que ya importaste desde la hoja, su nombre de Haxball entra directo a la lista de sorteo. Se conecta sola al abrir la página.</p>
       <div class="config-row">
         <div class="config-field">
           <label for="kickWorkerInput">URL del puente (Cloudflare Worker)</label>
@@ -1858,8 +1855,6 @@
           <label for="kickSecretInput">Clave del puente</label>
           <input type="password" id="kickSecretInput" value="copahax2026xyz" autocomplete="off" spellcheck="false" readonly>
         </div>
-        <button class="btn btn-primary" type="button" id="kickConnectBtn">🔌 Conectar</button>
-        <button class="btn btn-small btn-danger" type="button" id="kickDisconnectBtn" hidden>Desconectar</button>
       </div>
       <p class="status-msg" id="kickStatus"></p>
       <div id="kickLogWrap" hidden style="margin-top:10px;">
@@ -4184,9 +4179,8 @@
   // ---- Importar usuarios habilitados desde un link de Google Sheets ----
   (function regSheetImport(){
     const linkInput = document.getElementById('regSheetInput');
-    const btn = document.getElementById('regSheetBtn');
     const statusEl = document.getElementById('regSheetStatus');
-    if(!linkInput || !btn) return;
+    if(!linkInput) return;
 
     linkInput.value = 'https://docs.google.com/spreadsheets/d/1EQXqm2U75sxcOqUfLQfnHr95SkE0n8vhiuqE8lKXH_4/edit?usp=sharing';
     linkInput.readOnly = true;
@@ -4229,54 +4223,68 @@
       return url;
     }
 
-    btn.addEventListener('click', async ()=>{
+    let syncing = false;
+    async function syncSheet(){
+      if(syncing) return;
+      syncing = true;
       statusEl.classList.remove('warn');
-      const link = linkInput.value.trim();
-      if(!link){ statusEl.textContent = 'Pegá el link de la hoja primero.'; statusEl.classList.add('warn'); return; }
-      const csvUrl = buildCsvUrl(link);
-      if(!csvUrl){ statusEl.textContent = 'Ese link no parece ser de Google Sheets.'; statusEl.classList.add('warn'); return; }
-      LS.set('copa_sheet_link', link);
-      statusEl.textContent = 'Cargando…';
+      const csvUrl = buildCsvUrl(linkInput.value.trim());
+      if(!csvUrl){ statusEl.textContent = 'El link de la hoja no parece ser de Google Sheets.'; statusEl.classList.add('warn'); syncing = false; return; }
       try{
-        const r = await fetch(csvUrl);
-        if(!r.ok){ statusEl.textContent = 'No se pudo leer la hoja — revisá que esté compartida como "Cualquiera con el enlace puede ver".'; statusEl.classList.add('warn'); return; }
-        const text = await r.text();
-        const rows = parseCSV(text);
-        let agregados = 0, actualizados = 0, invalidas = 0;
+        const r = await fetch(csvUrl, { cache:'no-store' });
+        if(!r.ok){ statusEl.textContent = 'No se pudo leer la hoja — revisá que esté compartida como "Cualquiera con el enlace puede ver". Reintenta solo.'; statusEl.classList.add('warn'); return; }
+        const rows = parseCSV(await r.text());
+        const vistos = new Set();
+        let agregados = 0, actualizados = 0, eliminados = 0, invalidas = 0;
         rows.forEach((row, idx)=>{
           if(idx === 0) return; // encabezado
-          const chat = String(row[0] || '').trim();
-          const haxball = String(row[1] || '').trim();
+          const chat = String(row[0] || '').trim().slice(0,40);
+          const haxball = String(row[1] || '').trim().slice(0,40);
           if(!chat || !haxball){ if(chat || haxball) invalidas++; return; }
+          vistos.add(chat.toLowerCase());
           const existente = state.registro.usuarios.find(u=> (u.chat||'').toLowerCase() === chat.toLowerCase());
           if(existente){
-            existente.haxball = haxball.slice(0,40);
-            actualizados++;
+            if(existente.haxball !== haxball){ existente.haxball = haxball; actualizados++; }
           } else {
-            state.registro.usuarios.push({ id:newRegId(), haxball:haxball.slice(0,40), chat:chat.slice(0,40) });
+            state.registro.usuarios.push({ id:newRegId(), haxball, chat });
             agregados++;
           }
         });
-        saveState();
-        renderRegistro();
-        syncKickConfig();
-        statusEl.textContent = `Usuarios cargados: ${state.registro.usuarios.length} (${agregados} nuevos, ${actualizados} actualizados)` + (invalidas ? `, ${invalidas} filas ignoradas por datos incompletos` : '') + '.';
+        // Espejo de la hoja: se sacan los que ya no están (solo si la hoja trajo datos válidos).
+        if(vistos.size){
+          const antes = state.registro.usuarios.length;
+          state.registro.usuarios = state.registro.usuarios.filter(u=> vistos.has((u.chat||'').toLowerCase()));
+          eliminados = antes - state.registro.usuarios.length;
+        }
+        if(agregados || actualizados || eliminados){
+          saveState();
+          renderRegistro();
+          syncKickConfig();
+        }
+        const hh = new Date().toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+        statusEl.textContent = `✅ Sincronizado con la hoja (${hh}) — usuarios cargados: ${state.registro.usuarios.length}` + (invalidas ? `, ${invalidas} filas ignoradas por datos incompletos` : '') + '.';
       } catch(err){
-        statusEl.textContent = 'No se pudo leer la hoja. Revisá el link y que esté compartida públicamente.';
+        statusEl.textContent = 'No se pudo leer la hoja. Reintenta solo en 30 segundos.';
         statusEl.classList.add('warn');
+      } finally {
+        syncing = false;
       }
-    });
+    }
+    // Solo el organizador sincroniza; los invitados / vistas de OBS reciben todo del organizador.
+    if(!isGuest){
+      syncSheet();
+      setInterval(syncSheet, 30000);
+      document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) syncSheet(); });
+    }
   })();
   // ---- Twitch: auto-anotación por comando de chat (solo lectura, sin backend) ----
   (function twitchAutoReg(){
     const channelInput = document.getElementById('twitchChannelInput');
     const cmdInput = document.getElementById('twitchCmdInput');
-    const connectBtn = document.getElementById('twitchConnectBtn');
-    const disconnectBtn = document.getElementById('twitchDisconnectBtn');
     const statusEl = document.getElementById('twitchStatus');
     const logWrap = document.getElementById('twitchLogWrap');
     const logBox = document.getElementById('twitchLog');
-    if(!channelInput || !cmdInput || !connectBtn) return;
+    if(!channelInput || !cmdInput) return;
 
     channelInput.value = 'lucaspazo27';
     cmdInput.value = '!entrar';
@@ -4302,8 +4310,6 @@
       logBox.scrollTop = logBox.scrollHeight;
     }
     function setConnectedUI(connected){
-      connectBtn.hidden = connected;
-      disconnectBtn.hidden = !connected;
       channelInput.readOnly = true;
       cmdInput.readOnly = true;
     }
@@ -4399,20 +4405,17 @@
       setConnectedUI(false);
     }
 
-    connectBtn.addEventListener('click', connect);
-    disconnectBtn.addEventListener('click', disconnect);
+    if(!isGuest) connect();   // se conecta sola al abrir la página (solo organizador)
   })();
 
   // ---- Kick: auto-anotación vía el puente (Cloudflare Worker) ----
   (function kickAutoReg(){
     const workerInput = document.getElementById('kickWorkerInput');
     const secretInput = document.getElementById('kickSecretInput');
-    const connectBtn = document.getElementById('kickConnectBtn');
-    const disconnectBtn = document.getElementById('kickDisconnectBtn');
     const statusEl = document.getElementById('kickStatus');
     const logWrap = document.getElementById('kickLogWrap');
     const logBox = document.getElementById('kickLog');
-    if(!workerInput || !secretInput || !connectBtn) return;
+    if(!workerInput || !secretInput) return;
 
     workerInput.value = 'https://odd-dawn-19eb.agus0832123.workers.dev';
     secretInput.value = 'copahax2026xyz';
@@ -4447,8 +4450,6 @@
       logBox.scrollTop = logBox.scrollHeight;
     }
     function setConnectedUI(connected){
-      connectBtn.hidden = connected;
-      disconnectBtn.hidden = !connected;
       workerInput.readOnly = true;
       secretInput.readOnly = true;
     }
@@ -4517,6 +4518,7 @@
       log('Conectado al puente.');
       syncKickConfig();
       poll();
+      if(pollTimer) clearInterval(pollTimer);
       pollTimer = setInterval(poll, 3000);
     }
     function disconnect(){
@@ -4525,8 +4527,7 @@
       setConnectedUI(false);
     }
 
-    connectBtn.addEventListener('click', connect);
-    disconnectBtn.addEventListener('click', disconnect);
+    if(!isGuest) connect();   // se conecta solo al abrir la página (solo organizador)
   })();
   async function copyObsLink(vista){
     const link = buildObsLink(vista);
