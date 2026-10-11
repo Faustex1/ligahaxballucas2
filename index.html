@@ -1545,6 +1545,19 @@
 
       <hr class="divider-line">
 
+      <div class="reg-switch-row reg-switch-inline">
+        <label class="reg-switch">
+          <input type="checkbox" class="reg-open-toggle" id="regOpenToggleLiga">
+          <span class="reg-switch-track"><span class="reg-switch-thumb"></span></span>
+        </label>
+        <div>
+          <b class="reg-open-label" id="regOpenLabelLiga">Inscripciones cerradas</b>
+          <p class="rules-line">Mientras estén cerradas, el comando del chat no anota a nadie.</p>
+        </div>
+      </div>
+
+      <hr class="divider-line">
+
       <label class="names-label" for="namesTextarea"><span>Sorteo aleatorio — pegá la lista completa de jugadores (uno por línea)</span><span class="names-counter" id="namesCounter">0/12</span></label>
       <textarea class="names-textarea" id="namesTextarea" placeholder="martino&#10;srnixx&#10;ariel0405&#10;sensei&#10;fausto"></textarea>
       <div class="config-actions">
@@ -1663,6 +1676,19 @@
 
       <hr class="divider-line">
 
+      <div class="reg-switch-row reg-switch-inline">
+        <label class="reg-switch">
+          <input type="checkbox" class="reg-open-toggle" id="regOpenToggleKo">
+          <span class="reg-switch-track"><span class="reg-switch-thumb"></span></span>
+        </label>
+        <div>
+          <b class="reg-open-label" id="regOpenLabelKo">Inscripciones cerradas</b>
+          <p class="rules-line">Mientras estén cerradas, el comando del chat no anota a nadie.</p>
+        </div>
+      </div>
+
+      <hr class="divider-line">
+
       <label class="names-label" for="koNamesTextarea"><span>Sorteo aleatorio — pegá la lista completa de jugadores (uno por línea)</span><span class="names-counter" id="koNamesCounter">0/24</span></label>
       <textarea class="names-textarea" id="koNamesTextarea" placeholder="martino&#10;srnixx&#10;ariel0405&#10;sensei&#10;fausto"></textarea>
       <div class="config-actions">
@@ -1726,6 +1752,19 @@
           <input type="number" id="posPlayersPerTeamInput" min="1" max="8" value="3">
         </div>
         <button class="btn" id="posApplyConfigBtn">Aplicar</button>
+      </div>
+
+      <hr class="divider-line">
+
+      <div class="reg-switch-row reg-switch-inline">
+        <label class="reg-switch">
+          <input type="checkbox" class="reg-open-toggle" id="regOpenTogglePos">
+          <span class="reg-switch-track"><span class="reg-switch-thumb"></span></span>
+        </label>
+        <div>
+          <b class="reg-open-label" id="regOpenLabelPos">Inscripciones cerradas</b>
+          <p class="rules-line">Mientras estén cerradas, el comando del chat no anota a nadie.</p>
+        </div>
       </div>
 
       <hr class="divider-line">
@@ -1806,11 +1845,11 @@
     <div class="config-card">
       <div class="reg-switch-row">
         <label class="reg-switch">
-          <input type="checkbox" id="regOpenToggle">
+          <input type="checkbox" class="reg-open-toggle" id="regOpenToggle">
           <span class="reg-switch-track"><span class="reg-switch-thumb"></span></span>
         </label>
         <div>
-          <b id="regOpenLabel">Inscripciones cerradas</b>
+          <b class="reg-open-label" id="regOpenLabel">Inscripciones cerradas</b>
           <p class="rules-line">Mientras estén cerradas, el comando del chat no anota a nadie.</p>
         </div>
       </div>
@@ -2816,6 +2855,7 @@
     qa('.badge-select').forEach(e=>{ e.disabled = !P.teams; });
     qa('#numTeamsInput,#playersPerTeamInput,#koNumTeamsInput,#koPlayersPerTeamInput,#posNumTeamsInput,#posPlayersPerTeamInput,#namesTextarea,#koNamesTextarea,#posNamesTextarea').forEach(e=>{ e.readOnly = !P.config; });
     qa('#applyConfigBtn,#drawBtn,#koApplyConfigBtn,#koDrawBtn,#posApplyConfigBtn,#posDrawBtn,#resetBtn,#koResetBtn,#koResetAllBtn,#posResetBtn').forEach(e=>{ e.disabled = !P.config; });
+    qa('.reg-open-toggle').forEach(e=>{ e.disabled = !P.registro; });
     qa('#randomNamesBtn,#koRandomNamesBtn,#posRandomNamesBtn').forEach(e=>{ e.disabled = !P.teams; });
   }
   function updateGuestLock(){
@@ -4171,17 +4211,16 @@
   function renderRegistro(){
     const countEl = document.getElementById('regCount');
     if(countEl) countEl.textContent = state.registro.usuarios.length;
-    const chk = document.getElementById('regOpenToggle');
-    chk.checked = !!state.registro.open;
-    document.getElementById('regOpenLabel').textContent = state.registro.open ? 'Inscripciones abiertas' : 'Inscripciones cerradas';
+    document.querySelectorAll('.reg-open-toggle').forEach(chk=>{ chk.checked = !!state.registro.open; });
+    document.querySelectorAll('.reg-open-label').forEach(l=>{ l.textContent = state.registro.open ? 'Inscripciones abiertas' : 'Inscripciones cerradas'; });
     if(state.view === 'registro') updateHero();
   }
-  document.getElementById('regOpenToggle').addEventListener('change', (e)=>{
+  document.querySelectorAll('.reg-open-toggle').forEach(chk=> chk.addEventListener('change', (e)=>{
     state.registro.open = e.target.checked;
     saveState();
     renderRegistro();
     syncKickConfig();
-  });
+  }));
   // ---- Importar usuarios habilitados desde un link de Google Sheets ----
   (function regSheetImport(){
     const linkInput = document.getElementById('regSheetInput');
