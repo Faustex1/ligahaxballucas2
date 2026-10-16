@@ -1861,7 +1861,7 @@
       <div class="config-row">
         <div class="config-field">
           <label for="regSheetInput">Link de Google Sheets</label>
-          <input type="text" id="regSheetInput" value="https://docs.google.com/spreadsheets/d/1EQXqm2U75sxcOqUfLQfnHr95SkE0n8vhiuqE8lKXH_4/edit?usp=sharing" readonly>
+          <input type="text" id="regSheetInput" value="https://docs.google.com/spreadsheets/d/1jU0kDqb4T1KmYEPZADP34Yv3SKMDWgwl/edit?gid=626732973#gid=626732973" readonly>
         </div>
       </div>
       <p class="status-msg" id="regSheetStatus"></p>
@@ -4227,7 +4227,7 @@
     const statusEl = document.getElementById('regSheetStatus');
     if(!linkInput) return;
 
-    linkInput.value = 'https://docs.google.com/spreadsheets/d/1EQXqm2U75sxcOqUfLQfnHr95SkE0n8vhiuqE8lKXH_4/edit?usp=sharing';
+    linkInput.value = 'https://docs.google.com/spreadsheets/d/1jU0kDqb4T1KmYEPZADP34Yv3SKMDWgwl/edit?gid=626732973#gid=626732973';
     linkInput.readOnly = true;
     LS.set('copa_sheet_link', linkInput.value);
 
@@ -5180,8 +5180,8 @@
 <script>
 /* ===== TOP 10 en vivo desde Google Sheets (nombres: C2:C11 · puntos: E2:E11) ===== */
 (function(){
-  var SHEET_ID = '1ilmB79EUMHpFSAKBS-Q-t8cMwuGzHHHw';
-  var GID      = '1329779505';
+  var SHEET_ID = '1jU0kDqb4T1KmYEPZADP34Yv3SKMDWgwl';
+  var GID      = '350989282';
   var POLL_MS  = 10000;      // se actualiza solo cada 10 s
   var DOCK_MIN = 1520;       // desde este ancho el panel arranca abierto sin tapar el contenido
   var LS_KEY   = 'copa_lb_open';
@@ -5343,8 +5343,8 @@
 <script>
 /* ===== LÍDERES POR ESTADÍSTICA en vivo (hoja "Líderes por Estadística": A = categoría · B = jugador · C = cantidad) ===== */
 (function(){
-  var SHEET_ID = '1ilmB79EUMHpFSAKBS-Q-t8cMwuGzHHHw';
-  var GID      = '2063950636';
+  var SHEET_ID = '1jU0kDqb4T1KmYEPZADP34Yv3SKMDWgwl';
+  var GID      = '374715280';
   var POLL_MS  = 10000;
   var DOCK_MIN = 1520;
   var LS_KEY   = 'copa_lbl_open';
