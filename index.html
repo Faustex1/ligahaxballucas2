@@ -1443,9 +1443,14 @@
   :where(button, select, summary, input[type="button"], input[type="submit"], input[type="reset"]){ cursor:var(--cursor-default, default); }
   :where(a[href], [role="button"], input[type="checkbox"], input[type="radio"], input[type="range"], input[type="color"], input[type="file"]){ cursor:var(--cursor-pointer, pointer); }
   :where(textarea, [contenteditable="true"], input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="button"]):not([type="submit"]):not([type="reset"])){ cursor:var(--cursor-text, text); }
+
+  /* ---------- FONDO ANIMADO (sutil) ---------- */
+  #bgFx{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;display:block;}
+  .wrap,.ro-banner{position:relative;z-index:1;}
 </style>
 </head>
 <body>
+<canvas id="bgFx" aria-hidden="true"></canvas>
 
 <button class="palette-toggle" id="paletteToggleBtn" type="button" title="Cambiar paleta de colores">🎨</button>
 <div class="palette-panel" id="palettePanel" hidden>
@@ -5516,5 +5521,98 @@
 })();
 </script>
 
+<script>
+/* Fondo animado: hilos de luz fluidos y orgánicos (shader WebGL, deformación de dominio) que toma los colores de la paleta elegida (--gold, --pitch-bright, --gold-bright). */
+(function(){
+  const cv=document.getElementById('bgFx'); if(!cv) return;
+  const gl=cv.getContext('webgl',{alpha:true,premultipliedAlpha:true,antialias:false,depthBuffer:false});
+  if(!gl) return;
+  const VS='attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}';
+  const FS=`
+precision highp float;
+uniform vec2 R; uniform float T; uniform float L; uniform vec3 C1; uniform vec3 C2; uniform vec3 C3;
+float hash(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
+float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
+  return mix(mix(hash(i),hash(i+vec2(1.,0.)),f.x),mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.,1.)),f.x),f.y);}
+float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<5;i++){v+=a*noise(p);p=p*2.03+vec2(17.,9.);a*=.5;}return v;}
+float fbm3(vec2 p){float v=0.,a=.5;for(int i=0;i<3;i++){v+=a*noise(p);p=p*2.03+vec2(17.,9.);a*=.5;}return v/.875;}
+
+void main(){
+  vec2 uv=gl_FragCoord.xy/R;
+  vec2 p=(uv-.5)*vec2(R.x/R.y,1.)*1.7;
+  float t=T*.055;
+  /* el campo entero deriva por el espacio en direcciones cambiantes */
+  p+=vec2(sin(T*.021)*.9+cos(T*.013)*.6, cos(T*.017)*.8+sin(T*.011)*.7);
+  /* deformación de dominio en dos niveles: genera remolinos y flujos orgánicos, nada recto */
+  vec2 w=vec2(fbm3(p*.7+vec2(t,-t*.7)),fbm3(p*.7+vec2(5.2,1.3)-vec2(t*.8,-t)));
+  vec2 q=p+1.7*(w-.5);
+  vec2 r=vec2(fbm3(q*.8+2.0*w+vec2(1.7,9.2)+t*1.3),fbm3(q*.8+2.0*w+vec2(8.3,2.8)-t*1.1));
+  float f=fbm3(p*.6+2.6*(r-.5)+vec2(0.,t*.5));
+  /* hilos luminosos = curvas de nivel del campo: finos, definidos y siempre curvos */
+  float g1=abs(fract(f*4.+T*.015)-.5);
+  float g2=abs(fract(f*2.+T*.010+.3)-.5);
+  float thin=exp(-g1*16.);
+  float soft=exp(-g2*6.);
+  float env=smoothstep(.30,.68,fbm3(p*.65+1.8*r+vec2(3.,t)));
+  float env2=smoothstep(.34,.72,fbm3(p*.8-1.5*r+vec2(9.,-t)));
+  float haze=pow(clamp(f,0.,1.),2.6)*.2;
+  float mixc=smoothstep(.25,.75,r.x);
+  float mixd=smoothstep(.25,.75,r.y);
+  vec3 cA=mix(C1,C2,mixc);
+  vec3 cB=mix(C3,C1,mixd);
+  vec3 col=cA*(thin*env*1.15+soft*env*.30+haze*.55)
+          +cB*(thin*env2*.55+soft*env2*.22)
+          +C3*pow(thin,2.)*env*.35;                       /* destellos brillantes */
+  col*=.45;
+  col=1.-exp(-col*1.7);
+  float I=max(col.r,max(col.g,col.b));
+  vec4 o;
+  if(L>.5){ float a=I*.55; o=vec4(col*.55,a); }
+  else{ o=vec4(col*.92,I*.92); }
+  gl_FragColor=o;
+}`;
+  function sh(type,src){const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);
+    if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)){console.warn(gl.getShaderInfoLog(s));} return s;}
+  const pr=gl.createProgram();
+  gl.attachShader(pr,sh(gl.VERTEX_SHADER,VS)); gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,FS));
+  gl.linkProgram(pr); gl.useProgram(pr);
+  const buf=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+  const loc=gl.getAttribLocation(pr,'a'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+  const uR=gl.getUniformLocation(pr,'R'), uT=gl.getUniformLocation(pr,'T'), uL=gl.getUniformLocation(pr,'L'),
+        uC=[gl.getUniformLocation(pr,'C1'),gl.getUniformLocation(pr,'C2'),gl.getUniformLocation(pr,'C3')];
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
+  let raf=0,t0=performance.now(),acc=0,last=t0,light=false;
+  let cols=[[1,.18,.6],[0,.9,1],[1,.5,.86]];
+  const hex=h=>{h=(h||'').trim().replace('#','');if(h.length===3)h=h.replace(/./g,'$&$&');const n=parseInt(h,16);return isNaN(n)||h.length<6?null:[(n>>16)/255,((n>>8)&255)/255,(n&255)/255];};
+  const rgbv=v=>{const a=(v||'').split(',').map(x=>parseInt(x,10)/255);return a.length===3&&!a.some(isNaN)?a:null;};
+  /* aclara y da brillo a los colores oscuros para que luzcan como luz */
+  const glow=c=>{let r=c.map(x=>x+(1-x)*.3);const m=Math.max(r[0],r[1],r[2]);const k=m<.8?.8/m:1;return r.map(x=>Math.min(1,x*k));};
+  function theme(){
+    const root=document.documentElement, cs=getComputedStyle(root);
+    light=root.getAttribute('data-theme')==='light';
+    const a=rgbv(cs.getPropertyValue('--gold-rgb')), b=rgbv(cs.getPropertyValue('--pitch-bright-rgb')), c=hex(cs.getPropertyValue('--gold-bright'));
+    if(a&&b&&c) cols=[glow(a),glow(b),glow(c)];
+  }
+  function resize(){
+    const sc=Math.min(window.devicePixelRatio||1,1)*.6;     /* resolución reducida: el efecto es suave y rinde mejor */
+    cv.width=Math.max(2,Math.round(window.innerWidth*sc)); cv.height=Math.max(2,Math.round(window.innerHeight*sc));
+    gl.viewport(0,0,cv.width,cv.height);
+  }
+  function loop(now){
+    acc+=Math.min(.05,(now-last)/1000); last=now;
+    gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.uniform2f(uR,cv.width,cv.height); gl.uniform1f(uT,acc+20.); gl.uniform1f(uL,light?1:0); for(let k=0;k<3;k++) gl.uniform3f(uC[k],cols[k][0],cols[k][1],cols[k][2]);
+    gl.drawArrays(gl.TRIANGLES,0,3);
+    raf=requestAnimationFrame(loop);
+  }
+  function start(){ if(raf) return; last=performance.now(); raf=requestAnimationFrame(loop); }
+  function stop(){ cancelAnimationFrame(raf); raf=0; }
+  theme(); resize(); start();
+  window.addEventListener('resize',resize);
+  document.addEventListener('visibilitychange',()=>document.hidden?stop():start());
+  setInterval(theme,400);
+})();
+</script>
 </body>
 </html>
