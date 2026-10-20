@@ -2563,6 +2563,7 @@
   }
   const JOIN_ID = parseJoin();
   const isGuest = !!JOIN_ID;
+  const EXT_JOIN = isGuest && /[#&?]ext=1(?:&|$)/.test(location.hash || '');
   function newRegId(){ return 'r' + Math.random().toString(36).slice(2,10); }
 
   const LS = {
@@ -2708,6 +2709,7 @@
     }
     if(typeof updateChatNote === 'function') updateChatNote();
   }
+  const EXT_PERMS = normPerms({ scores:true });
   function buildLink(){
     if(!hostId) return '';
     let base = '';
@@ -2715,6 +2717,7 @@
     else base = (LS.get('copa_base') || '').trim().split('#')[0];
     return base ? base + '#sala=' + hostId : '';
   }
+  window.__copaLive = { isGuest, link(){ const l = buildLink(); return l ? l + '&ext=1' : ''; }, copy: copyText, startHosting(){ return startHosting(); } };
   function buildObsLink(vista){
     if(!hostId) return '';
     let dir;
@@ -2805,10 +2808,11 @@
   }
 
   // ---- organizador ----
-  function allSecs(){
+  function allSecs(pp){
+    pp = pp || perms;
     const o = {};
     SECTION_NAMES.forEach(n=>{
-      if(n === 'registro' && !perms.registro) return; // sin permiso, no viaja ni en el snap inicial
+      if(n === 'registro' && !pp.registro) return; // sin permiso, no viaja ni en el snap inicial
       o[n] = clone(SECTIONS[n](state));
     });
     return o;
@@ -2822,7 +2826,9 @@
     conn.on('open', ()=>{
       if(conns.size >= 30){ try{ conn.close(); }catch(e){} return; }
       conns.set(conn.connectionId, conn);
-      sendTo(conn, { t:'snap', secs: allSecs(), perms });
+      conn.copaExt = !!(conn.metadata && conn.metadata.ext);      // link de la extensión: solo puede cargar resultados
+      const gp0 = conn.copaExt ? EXT_PERMS : perms;
+      sendTo(conn, { t:'snap', secs: allSecs(gp0), perms: gp0 });
       broadcastPeers();
     });
     conn.on('data', (msg)=> onGuestMsg(conn, msg));
@@ -2842,16 +2848,17 @@
       return;
     }
     if(msg.t !== 'sec') return;
+    const gp = conn.copaExt ? EXT_PERMS : perms;
     const name = msg.name;
     if(SECTION_NAMES.indexOf(name) < 0) return;
     const deny = ()=> sendTo(conn, { t:'sec', name, data: clone(SECTIONS[name](state)) });   // le devuelvo lo real
-    if(!maySend(name, perms)){
+    if(!maySend(name, gp)){
       if(name === 'registro') return;   // sin permiso, ni siquiera se le confirma con datos reales
       deny();
       return;
     }
     let raw = msg.data;
-    if(!perms.config && (name === 'liga' || name === 'ko')){
+    if(!gp.config && (name === 'liga' || name === 'ko')){
       // con permiso de "nombres y escudos" solo se aceptan esos campos; la cantidad de equipos no se toca
       const cur = SECTIONS[name](state);
       const clean = (raw && typeof raw === 'object') ? CLEAN[name](raw) : null;
@@ -2870,8 +2877,7 @@
     perms = normPerms(p);
     LS.set('copa_perms', JSON.stringify(perms));
     renderPermUI();
-    broadcast({ t:'perm', perms });
-    broadcast({ t:'snap', secs: allSecs(), perms });          // deshace lo que ya no puedan tocar
+    conns.forEach(c=>{ if(c.copaExt) return; sendTo(c, { t:'perm', perms }); sendTo(c, { t:'snap', secs: allSecs(), perms }); });          // deshace lo que ya no puedan tocar
   }
   function openHostPeer(P, attempt){
     clearTimeout(peerRetry);
@@ -2956,7 +2962,7 @@
   function connectToHost(){
     if(!peer || peer.destroyed || !peer.open) return;
     if(guestConn){ try{ guestConn.close(); }catch(e){} }
-    const c = peer.connect(JOIN_ID, { reliable:true, serialization:'json' });
+    const c = peer.connect(JOIN_ID, { reliable:true, serialization:'json', metadata:{ ext: EXT_JOIN ? 1 : 0 } });
     guestConn = c;
     let opened = false;
     const failTimer = setTimeout(()=>{ if(!opened && guestConn === c){ try{ c.close(); }catch(e){} guestState = 'offline'; updateShareUI(); guestReconnectSoon(); } }, 12000);
@@ -6006,15 +6012,12 @@ void main(){
 /* Cartel de novedades: aparece una sola vez por versión para cada persona (se recuerda en su navegador).
    Para mostrar uno nuevo en una próxima actualización: cambiar NOV_VERSION y la lista de abajo. */
 (function(){
-  var NOV_VERSION = '2026-10-19';
+  var NOV_VERSION = '2026-10-20';
   var LS_KEY = 'copa_novedades_visto';
   var ITEMS = [
-    { e:'✨', t:'Fondo animado nuevo', d:'Hilos de luz fluidos que se mueven por toda la pantalla y toman los colores de la paleta que elijas con el 🎨.' },
-    { e:'📋', t:'Lista del sorteo en columnas', d:'Al cargar los nombres, cuando se llena una columna siguen en la de al lado, con líneas divisorias discretas. Así aprovechás todo el espacio.' },
-    { e:'👑', t:'Top 10 de cada estadística', d:'En LÍDERES, tocá cualquier estadística para ver el top 10 completo. Con las flechas ‹ › pasás de una a otra.' },
-    { e:'🔍', t:'Buscador de jugadores', d:'Tocá la lupa, al lado del 🎨, y escribí un nombre: las sugerencias aparecen mientras escribís. Al elegir un jugador ves todas sus estadísticas.' },
-    { e:'🏆', t:'Estadísticas de cada jugador', d:'En el TOP 10, tocá a un jugador para ver sus goles, asistencias y partidos jugados.' }
+    { e:'📡', t:'Anotación automática de goles', d:'Al lado de cada partido aparece el botón En vivo. Tocalo cuando empiece la partida y la página va anotando los goles sola, mirando el marcador de HaxBall. Cuando el partido termina, el resultado queda guardado y el botón pasa al siguiente partido.' }
   ];
+
   try{ if(localStorage.getItem(LS_KEY) === NOV_VERSION) return; }catch(e){}
 
   var back = document.createElement('div');
@@ -6293,5 +6296,125 @@ void main(){
   setInterval(function(){ if(!document.hidden){ load(); loadUsers(); } }, POLL_MS);
   document.addEventListener('visibilitychange', function(){ if(!document.hidden){ load(); loadUsers(); } });
 })();
-</script></body>
+</script><style>
+.match{position:relative}
+.live-ui{position:absolute;left:calc(50% + 84px);top:50%;transform:translateY(-50%);display:flex;gap:4px;align-items:center;z-index:2}
+.live-btn,.live-sw{border:1px solid rgba(255,255,255,.25);background:rgba(10,12,15,.6);color:inherit;border-radius:999px;padding:3px 8px;font:600 12px/1.2 inherit;font-family:inherit;cursor:pointer;white-space:nowrap}
+.live-btn.on{background:#e5484d;border-color:#e5484d;color:#fff;animation:livepulse 1.4s infinite}
+.live-btn.done{opacity:.6}
+@keyframes livepulse{50%{box-shadow:0 0 0 4px rgba(229,72,77,.3)}}
+@media (max-width:560px){.live-ui{position:static;transform:none;grid-column:1/-1;justify-content:center;margin-top:4px}}
+</style>
+<script>
+(function(){
+  var LISTS=[{id:'fixturesList',section:'liga'},{id:'posFixturesList',section:'pos'}];
+  var NTFY='https://ntfy.sh/copa-lucaspazo27-live-k7q4x9m2vh8d';
+  var extOk=false, live=null, es=null, liveAt=0, cand=null, candT=null, sawPlaying=false, playAt=0, lastMsgAt=0, lastSt='', lastR=null, lastB=null; // live={section,key,redIsA}
+  function post(type){ window.postMessage({copaPage:true,type:type},'*'); }
+  function toast(m){ var t=document.getElementById('toast'); if(!t) return; t.textContent=m; t.classList.add('show'); clearTimeout(toast.t); toast.t=setTimeout(function(){t.classList.remove('show');},3500); }
+  window.addEventListener('message',function(e){
+    var d=e.data; if(e.source!==window||!d||d.copaExt!==true) return;
+    if(d.type==='pong'){ var was=extOk; extOk=true; if(!was) paint(); }
+    else if(d.type==='cmd-start'){ if(d.section&&d.key) start(d.section,d.key); }
+    else if(d.type==='cmd-stop'){ if(live) stop(); }
+    else if(d.type==='score'&&live) applyScore(d.red,d.blue);
+    else if(d.type==='ended'&&live){ if(d.red!=null){ lastR=d.red; lastB=d.blue; } finish(); }
+  });
+  function box(section,key,side){ var L=LISTS.filter(function(l){return l.section===section;})[0]; var c=document.getElementById(L.id); return c&&c.querySelector('.score-box[data-key="'+key+'"][data-side="'+side+'"]'); }
+  function applyScore(red,blue){
+    if(red==null||blue==null) return;
+    var a=live.redIsA?red:blue, b=live.redIsA?blue:red;
+    [['a',a],['b',b]].forEach(function(p){ var bx=box(live.section,live.key,p[0]); if(bx&&bx.value!==String(p[1])){ bx.value=p[1]; bx.dispatchEvent(new Event('input',{bubbles:true})); } });
+  }
+  function onRemote(ev){
+    var m; try{ m=JSON.parse(ev.data); }catch(e){ return; }
+    var d; try{ d=JSON.parse(m.message); }catch(e){ return; }
+    if(!d||d.copa!==1||!live) return;
+    var tm=(m.time||0)*1000;
+    if(tm<liveAt-2000){                      // mensaje anterior a que apretaras "En vivo": solo vale si la partida sigue en juego
+      if(d.status==='playing') cand=d; else cand=null;
+      clearTimeout(candT); candT=setTimeout(function(){ if(cand&&live) gotMsg(cand); cand=null; },1200);
+      return;
+    }
+    gotMsg(d);
+  }
+  function gotMsg(d){
+    lastMsgAt=Date.now(); lastSt=d.status;
+    if(d.status==='playing'){ if(!sawPlaying) playAt=Date.now(); sawPlaying=true; lastR=d.red; lastB=d.blue; applyScore(d.red,d.blue); }
+    else if(d.status==='ended'){ if(d.red!=null){ lastR=d.red; lastB=d.blue; } finish(); }
+    else if(d.status==='room'&&sawPlaying){ finish(); }   // volvió a la sala sin partida: terminó
+  }
+  function finish(){
+    if(!live) return;
+    applyScore(lastR,lastB); toast('🏁 Partido terminado, resultado guardado'); stop();
+  }
+  function liveTxt(){
+    if(!lastMsgAt) return 'esperando HaxBall…';
+    if(lastSt==='playing') return '🔴 '+lastR+' – '+lastB+' 🔵';
+    return 'HaxBall sin partida';
+  }
+  function openRemote(){
+    closeRemote();
+    try{ es=new EventSource(NTFY+'/sse?since=90s'); es.onmessage=onRemote; }catch(e){ es=null; }
+  }
+  function closeRemote(){ if(es){ try{ es.close(); }catch(e){} es=null; } clearTimeout(candT); cand=null; }
+  function start(section,key){
+    if(live) stop();
+    live={section:section,key:key,redIsA:true}; liveAt=Date.now(); sawPlaying=false; playAt=0; lastMsgAt=0; lastSt=''; lastR=lastB=null; openRemote(); post('start'); toast('📡 Esperando el marcador de HaxBall…'); paint();
+  }
+  function stop(){ post('stop'); closeRemote(); live=null; paint(); }
+  var lastSig='';
+  setInterval(function(){ var n=Date.now(); if(live&&sawPlaying&&n-playAt>=119000&&n-lastMsgAt>15000) finish(); },1000);   // pasó 1:59 de partido y se corta la señal: terminó, se pasa al siguiente enseguida
+  var lastSig='';
+  setInterval(function(){ var n=Date.now(); if(live&&sawPlaying&&n-playAt>=119000&&n-lastMsgAt>15000) finish(); },1000);   // pasó 1:59 de partido y se corta la señal: terminó, se pasa al siguiente enseguida
+  function pushList(){
+    if(!extOk) return;
+    var out=[];
+    LISTS.forEach(function(L){
+      var c=document.getElementById(L.id); if(!c) return;
+      c.querySelectorAll('.match').forEach(function(m){
+        var ins=m.querySelectorAll('.score-box'); if(ins.length<2) return;
+        var n=m.querySelectorAll('.team-text-name'), j=m.closest('.jornada'), jl=j&&j.querySelector('.jornada-label');
+        out.push({section:L.section,key:ins[0].dataset.key,a:n[0]?n[0].textContent:'',b:n[1]?n[1].textContent:'',sa:ins[0].value,sb:ins[1].value,editable:!ins[0].readOnly,
+          j:(L.section==='pos'?'Posiciones · ':'Liga · ')+(jl?jl.textContent:''),on:!!(live&&live.section===L.section&&live.key===ins[0].dataset.key)});
+      });
+    });
+    var sig=JSON.stringify(out); if(sig===lastSig) return; lastSig=sig;
+    window.postMessage({copaPage:true,type:'matches',matches:out},'*');
+  }
+  function paint(){
+    pushList();
+    LISTS.forEach(function(L){
+      var c=document.getElementById(L.id); if(!c) return;
+      var nextKey=null;   // el próximo partido sin resultado, en orden
+      var all=c.querySelectorAll('.match');
+      for(var q=0;q<all.length;q++){ var bx=all[q].querySelectorAll('.score-box'); if(bx.length<2) continue; if(bx[0].value===''||bx[1].value===''){ nextKey=bx[0].dataset.key; break; } }
+      if(live&&live.section===L.section) nextKey=live.key;   // mientras se sigue uno, solo ese
+      all.forEach(function(m){
+        var inp=m.querySelector('.score-box'); if(!inp) return;
+        var key=inp.dataset.key, ui=m.querySelector('.live-ui');
+        var editable=!inp.readOnly, host=!!(window.__copaLive&&!window.__copaLive.isGuest);
+        var showLive=editable&&key===nextKey;
+        if(!showLive){ if(ui) ui.remove(); return; }
+        var on=!!(live&&live.section===L.section&&live.key===key);
+        var lt=on?liveTxt():''; var sig=(showLive?'v':'-')+(on?'on':'off')+(host?'h':'-')+(extOk?'e':'x')+lt;
+        if(ui&&ui.dataset.sig===sig) return;
+        if(ui) ui.remove();
+        ui=document.createElement('div'); ui.className='live-ui'; ui.dataset.sig=sig;
+        if(showLive){
+          var b=document.createElement('button'); b.type='button'; b.className='live-btn'+(on?' on':'');
+          b.textContent=on?('⏹ En vivo · '+lt):'📡 En vivo'; b.title=on?'Dejar de seguir':'Seguir este partido desde HaxBall';
+          b.onclick=function(){ on?stop():start(L.section,key); };
+          ui.appendChild(b);
+        }
+        m.appendChild(ui);
+      });
+    });
+  }
+  LISTS.forEach(function(L){ var c=document.getElementById(L.id); if(c) new MutationObserver(function(){ paint(); }).observe(c,{childList:true,subtree:true}); });
+  post('ping'); [400,1200,2500].forEach(function(t){ setTimeout(function(){ if(!extOk) post('ping'); },t); }); setInterval(function(){ post('ping'); },4000); setInterval(pushList,1500);
+  setTimeout(paint,500); setInterval(paint,1000);
+})();
+</script>
+</body>
 </html>
