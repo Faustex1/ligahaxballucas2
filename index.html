@@ -6316,7 +6316,7 @@ void main(){
 (function(){
   var LISTS=[{id:'fixturesList',section:'liga'},{id:'posFixturesList',section:'pos'}];
   var NTFY='https://ntfy.sh/copa-lucaspazo27-live-k7q4x9m2vh8d';
-  var extOk=false, live=null, es=null, liveAt=0, cand=null, candT=null, sawPlaying=false, candTm=0, playAt=0, lastMsgAt=0, lastSt='', lastR=null, lastB=null; // live={section,key,redIsA}
+  var extOk=false, live=null, es=null, liveAt=0, cand=null, candT=null, esOpen=false, sawPlaying=false, candTm=0, playAt=0, lastMsgAt=0, lastSt='', lastR=null, lastB=null; // live={section,key,redIsA}
   function post(type){ window.postMessage({copaPage:true,type:type},'*'); }
   function toast(m){ var t=document.getElementById('toast'); if(!t) return; t.textContent=m; t.classList.add('show'); clearTimeout(toast.t); toast.t=setTimeout(function(){t.classList.remove('show');},3500); }
   window.addEventListener('message',function(e){
@@ -6369,13 +6369,13 @@ void main(){
     applyScore(lastR,lastB); toast('🏁 Partido terminado, resultado guardado'); stop();
   }
   function liveTxt(){
-    if(!lastMsgAt) return 'esperando HaxBall…';
+    if(!lastMsgAt) return esOpen ? 'esperando HaxBall…' : 'conectando…';
     if(lastSt==='playing') return '🔴 '+lastR+' – '+lastB+' 🔵';
     return 'HaxBall sin partida';
   }
   function openRemote(){
     closeRemote();
-    try{ es=new EventSource(NTFY+'/sse?since=90s'); es.onmessage=onRemote; }catch(e){ es=null; }
+    esOpen=false; try{ es=new EventSource(NTFY+'/sse?since=90s'); es.onopen=function(){ esOpen=true; paint(); }; es.onerror=function(){ esOpen=(es&&es.readyState===1); }; es.onmessage=onRemote; }catch(e){ es=null; }
   }
   function closeRemote(){ if(es){ try{ es.close(); }catch(e){} es=null; } clearTimeout(candT); cand=null; }
   function start(section,key){
