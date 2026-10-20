@@ -6343,6 +6343,7 @@ void main(){
       clearTimeout(candT); candT=setTimeout(function(){ if(cand&&live) gotMsg(cand); cand=null; },1200);
       return;
     }
+    clearTimeout(candT); cand=null;          // llegó algo en vivo: lo viejo ya no vale
     gotMsg(d);
   }
   function gotMsg(d){
