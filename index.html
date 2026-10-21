@@ -1508,17 +1508,17 @@
 
   /* ---------- CARTEL DE NOVEDADES ---------- */
   .nov-back{z-index:160;}
-  .nov-card{max-width:430px;}
+  .nov-card{max-width:480px;}
   .nov-head{display:flex; align-items:center; gap:12px; padding:18px 18px 6px;}
   .nov-ic{font-size:30px; line-height:1;}
   .nov-kicker{font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:0.14em; color:var(--gold-bright); line-height:1;}
   .nov-title{font-family:'Bebas Neue',sans-serif; font-size:30px; line-height:1.05; letter-spacing:0.02em; margin-top:2px;}
   .nov-list{list-style:none; margin:0; padding:8px 18px 4px; overflow-y:auto; display:flex; flex-direction:column; gap:10px;}
-  .nov-item{display:grid; grid-template-columns:34px 1fr; gap:12px; align-items:start; padding:11px 12px;
+  .nov-item{display:grid; grid-template-columns:38px 1fr; gap:12px; align-items:start; padding:11px 12px;
     background:var(--paper-2); border:1px solid var(--card-border); border-radius:12px;}
-  .nov-item .e{font-size:22px; line-height:1.2; text-align:center;}
-  .nov-item b{display:block; font-size:14.5px; line-height:1.3; margin-bottom:2px;}
-  .nov-item span{display:block; font-size:13px; line-height:1.45; color:var(--muted);}
+  .nov-item .e{font-size:26px; line-height:1.2; text-align:center;}
+  .nov-item b{display:block; font-size:18px; line-height:1.3; margin-bottom:2px;}
+  .nov-item span{display:block; font-size:16px; line-height:1.55; color:var(--text,#fff); opacity:.9;}
   .nov-foot{padding:12px 18px 18px; display:flex; justify-content:flex-end;}
   .nov-btn{padding:10px 20px; border-radius:999px; border:1px solid rgba(var(--gold-rgb),0.6); cursor:var(--cursor-pointer, pointer);
     background:linear-gradient(135deg, var(--gold), var(--gold-dim)); color:var(--pitch-dark); font-weight:700; font-size:14px;
@@ -2722,7 +2722,7 @@
     else base = (LS.get('copa_base') || '').trim().split('#')[0];
     return base ? base + '#sala=' + hostId : '';
   }
-  window.__copaLive = { isGuest, link(){ const l = buildLink(); return l ? l + '&ext=1' : ''; }, copy: copyText, startHosting(){ return startHosting(); } };
+  window.__copaLive = { isGuest, link(){ const l = buildLink(); return l ? l + '&ext=1' : ''; }, copy: copyText, startHosting(){ return startHosting(); }, loadPeer: loadPeerJs };
   function buildObsLink(vista){
     if(!hostId) return '';
     let dir;
@@ -6017,11 +6017,10 @@ void main(){
 /* Cartel de novedades: aparece una sola vez por versión para cada persona (se recuerda en su navegador).
    Para mostrar uno nuevo en una próxima actualización: cambiar NOV_VERSION y la lista de abajo. */
 (function(){
-  var NOV_VERSION = '2026-10-20';
+  var NOV_VERSION = '2026-10-21';
   var LS_KEY = 'copa_novedades_visto';
   var ITEMS = [
-    { e:'📡', t:'Anotación automática de goles', d:'Los resultados ahora se cargan solos mientras se juega. Cuando empieza un partido, tocás el botón <em class="nov-k">En vivo</em> que aparece al lado del marcador: la página mira el resultado en HaxBall, va anotando los goles y, cuando termina, lo deja guardado y el botón pasa al siguiente partido.' },
-    { e:'🧩', t:'¿Cómo funciona?', d:'<em class="nov-k">1.</em> Quien juega el partido en haxball.com instala la extensión <em class="nov-k">Copa HaxBall Live</em> en su navegador (puede ser el mismo que maneja la página o un amigo que esté jugando). Se instala una sola vez.<br><em class="nov-k">2.</em> Esa persona juega normal: la extensión lee el marcador y se lo manda a la página por internet, aunque estén en computadoras distintas.<br><em class="nov-k">3.</em> Quien maneja la página toca <em class="nov-k">En vivo</em> en el partido que se está jugando.<br><em class="nov-k">4.</em> Cuando la partida termina, el resultado queda cargado y el botón aparece en el siguiente partido.<br><br>Si querés instalar la extensión vos, la descargás con el link que está al final de la página. Es opcional: si tenés un amigo que juega con la extensión, no hace falta.' }
+    { e:'📡', t:'Anotación automática de goles', d:'Ya no depende de una extensión de Google como antes: no hace falta instalar nada. Tocá <em class="nov-k">En vivo</em> en el partido que se juega y los goles se anotan solos. Al terminar queda guardado y el botón pasa al siguiente. Cuenta si dura 1:59 o más.<br><br><em class="nov-k">Aclaración:</em> el contador está conectado con el código del host, por eso solo funciona en las partidas de la sala que lo tiene integrado.' }
   ];
 
 
@@ -6316,6 +6315,7 @@ void main(){
 (function(){
   var LISTS=[{id:'fixturesList',section:'liga'},{id:'posFixturesList',section:'pos'}];
   var NTFY='https://ntfy.sh/copa-lucaspazo27-live-k7q4x9m2vh8d';
+  var P2P_ID='copa-lucaspazo27-sala-k7q4x9m2vh8d', peer=null, pconn=null, p2pOpen=false, p2pTimer=null;
   var extOk=false, live=null, es=null, liveAt=0, cand=null, candT=null, esOpen=false, replayUntil=0, sawPlaying=false, playAt=0, lastMsgAt=0, lastSt='', lastR=null, lastB=null; // live={section,key,redIsA}
   function post(type){ window.postMessage({copaPage:true,type:type},'*'); }
   function toast(m){ var t=document.getElementById('toast'); if(!t) return; t.textContent=m; t.classList.add('show'); clearTimeout(toast.t); toast.t=setTimeout(function(){t.classList.remove('show');},3500); }
@@ -6355,7 +6355,7 @@ void main(){
     if(d.status==='playing'){
       var st=Date.now()-(d.el||0); if(!sawPlaying||d.el!=null) playAt=st;
       sawPlaying=true; lastR=d.red; lastB=d.blue; applyScore(d.red,d.blue);
-    }else if(d.status==='ended'||d.status==='room'){
+    }else if(d.status==='ended'||d.status==='room'||d.status==='idle'){
       if(!sawPlaying) return;
       if(d.red!=null){ lastR=d.red; lastB=d.blue; }
       var el=(d.status==='ended'&&d.el!=null)?d.el:elapsed();
@@ -6368,22 +6368,58 @@ void main(){
     applyScore(lastR,lastB); toast('🏁 Partido terminado, resultado guardado'); stop();
   }
   function liveTxt(){
-    if(!lastMsgAt) return esOpen ? 'esperando HaxBall…' : 'conectando…';
+    if(!lastMsgAt) return (esOpen||p2pOpen) ? 'esperando HaxBall…' : 'conectando…';
     if(lastSt==='playing') return '🔴 '+lastR+' – '+lastB+' 🔵';
+    if(lastSt==='idle') return 'sala conectada, esperando partida';
     return 'HaxBall sin partida';
   }
   function openRemote(){
     closeRemote();
     esOpen=false; try{ es=new EventSource(NTFY+'/sse?since=90s'); es.onopen=function(){ esOpen=true; replayUntil=Date.now()+2000; paint(); }; es.onerror=function(){ esOpen=(es&&es.readyState===1); }; es.onmessage=onRemote; }catch(e){ es=null; }
   }
-  function closeRemote(){ if(es){ try{ es.close(); }catch(e){} es=null; } clearTimeout(candT); cand=null; }
+  function closeRemote(){ if(es){ try{ es.close(); }catch(e){} es=null; } clearTimeout(candT); cand=null; closeP2P(); }
+  /* Canal directo con la sala (sin intermediarios ni límites): la página se conecta a la sala por WebRTC (PeerJS) */
+  function onP2PData(d){
+    if(typeof d==='string'){ try{ d=JSON.parse(d); }catch(e){ return; } }
+    if(!d||d.copa!==1||!live) return;
+    clearTimeout(candT); cand=null;
+    gotMsg(d);
+  }
+  function p2pRetry(){ clearTimeout(p2pTimer); p2pTimer=setTimeout(function(){ if(live) connectP2P(); },3000); }
+  function connectP2P(){
+    if(!peer||peer.destroyed||!peer.open||!live) return;
+    try{ if(pconn) pconn.close(); }catch(e){}
+    p2pOpen=false;
+    var c=peer.connect(P2P_ID,{reliable:true,serialization:'json'}); pconn=c;
+    c.on('open',function(){ if(pconn!==c) return; p2pOpen=true; paint(); });
+    c.on('data',function(d){ if(pconn===c) onP2PData(d); });
+    c.on('close',function(){ if(pconn!==c) return; p2pOpen=false; paint(); p2pRetry(); });
+    c.on('error',function(){ if(pconn!==c) return; p2pOpen=false; p2pRetry(); });
+  }
+  function openP2P(){
+    closeP2P();
+    var A=window.__copaLive; if(!A||!A.loadPeer) return;
+    A.loadPeer().then(function(P){
+      if(!live||peer) return;
+      var pr; try{ pr=new P(undefined,window.COPA_PEER_OPTS||{}); }catch(e){ return; }
+      peer=pr;
+      pr.on('open',connectP2P);
+      pr.on('disconnected',function(){ try{ if(!pr.destroyed) pr.reconnect(); }catch(e){} });
+      pr.on('error',function(err){ p2pOpen=false; if(err&&(err.type==='peer-unavailable'||err.type==='network'||err.type==='server-error'||err.type==='socket-error')) p2pRetry(); });
+    },function(){});
+  }
+  function closeP2P(){
+    clearTimeout(p2pTimer); p2pOpen=false;
+    try{ if(pconn) pconn.close(); }catch(e){} pconn=null;
+    try{ if(peer) peer.destroy(); }catch(e){} peer=null;
+  }
   function start(section,key){
     if(live) stop();
-    live={section:section,key:key,redIsA:true}; var ba=box(section,key,'a'), bb=box(section,key,'b'); initScore={a:ba?ba.value:'',b:bb?bb.value:''}; liveAt=Date.now(); sawPlaying=false; playAt=0; lastMsgAt=0; lastSt=''; lastR=lastB=null; openRemote(); post('start'); toast('📡 Esperando el marcador de HaxBall…'); paint();
+    live={section:section,key:key,redIsA:true}; var ba=box(section,key,'a'), bb=box(section,key,'b'); initScore={a:ba?ba.value:'',b:bb?bb.value:''}; liveAt=Date.now(); sawPlaying=false; playAt=0; lastMsgAt=0; lastSt=''; lastR=lastB=null; openRemote(); openP2P(); post('start'); toast('📡 Esperando el marcador de HaxBall…'); paint();
   }
   function stop(){ post('stop'); closeRemote(); live=null; paint(); }
   var lastSig='';
-  setInterval(function(){ var n=Date.now(); if(live&&sawPlaying&&playAt&&n-playAt>=MIN_MS&&n-lastMsgAt>75000) finish(); },1000);   // pasó 1:59 de partido y se corta la señal: terminó, se pasa al siguiente enseguida
+  setInterval(function(){ var n=Date.now(); if(live&&sawPlaying&&playAt&&n-playAt>=MIN_MS&&n-lastMsgAt>(p2pOpen?20000:75000)) finish(); },1000);   // pasó 1:59 de partido y se corta la señal: terminó, se pasa al siguiente enseguida
   function pushList(){
     if(!extOk) return;
     var out=[];
