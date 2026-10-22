@@ -1600,7 +1600,7 @@
   <ul class="srch-list" id="srchList" role="listbox"></ul>
   <div class="srch-msg" id="srchMsg" hidden></div>
 </div>
-<a class="stats-link" id="statsLink" href="estadisticas.html" title="Estadísticas completas, rankings y comparador" aria-label="Estadísticas completas">📊</a>
+<a class="stats-link" id="statsLink" href="https://estadisticaslucaspazo27.vercel.app/" title="Estadísticas completas, rankings y comparador" aria-label="Estadísticas completas">📊</a>
 <button class="palette-toggle" id="paletteToggleBtn" type="button" title="Cambiar paleta de colores">🎨</button>
 <div class="palette-panel" id="palettePanel" hidden>
   <h4>Paleta de colores</h4>
@@ -6277,7 +6277,7 @@ void main(){
       '<div class="lb-credit">Estadísticas creadas por <b>SrNixx</b></div>' +
       '<div class="pc-chat"><span>Twitch / Kick</span><b id="pcChat"></b></div>' +
       '<div class="pc-body" id="pcBody"></div>' +
-      '<a class="pc-more" id="pcMore" href="estadisticas.html">📊 Ver ficha completa, gráficos y comparar</a>' +
+      '<a class="pc-more" id="pcMore" href="https://estadisticaslucaspazo27.vercel.app/">📊 Ver ficha completa, gráficos y comparar</a>' +
     '</div>';
   document.body.appendChild(back);
   var pcName = back.querySelector('#pcName'), pcKicker = back.querySelector('#pcKicker'), pcBody = back.querySelector('#pcBody'), pcChat = back.querySelector('#pcChat');
@@ -6286,7 +6286,7 @@ void main(){
   function fill(){
     var p = cur; if(!p) return;
     pcName.textContent = p.name;
-    var more = back.querySelector('#pcMore'); if(more) more.href = 'estadisticas.html#j=' + encodeURIComponent(p.name);
+    var more = back.querySelector('#pcMore'); if(more) more.href = 'https://estadisticaslucaspazo27.vercel.app/#j=' + encodeURIComponent(p.name);
     pcChat.textContent = (chatOf[norm(p.name)] || []).join(' · ');   // si no hay dato, queda vacío
     pcKicker.textContent = ['ESTADÍSTICAS', p.dorsal ? '#' + p.dorsal : '', p.pos].filter(Boolean).join(' · ');
     pcBody.innerHTML =
