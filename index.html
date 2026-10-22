@@ -1534,6 +1534,17 @@
     display:flex; align-items:center; justify-content:center; padding:0;
   }
   .srch-toggle:hover{filter:brightness(1.08);}
+  .stats-link{
+    position:fixed; top:calc(14px + env(safe-area-inset-top, 0px)); right:114px; z-index:210;
+    width:42px; height:42px; border-radius:50%; text-decoration:none;
+    background:var(--card); border:1px solid var(--card-border); color:var(--ink);
+    box-shadow:0 8px 22px rgba(0,0,0,0.35), var(--card-glow);
+    display:flex; align-items:center; justify-content:center; font-size:18px;
+  }
+  .stats-link:hover{filter:brightness(1.08); border-color:var(--gold);}
+  .pc-more{display:block; margin:14px 0 2px; text-align:center; text-decoration:none; font-weight:700; font-size:15px;
+    padding:12px 14px; border-radius:12px; color:var(--gold-bright); border:1px solid var(--gold); background:rgba(var(--gold-rgb),0.12);}
+  .pc-more:hover{filter:brightness(1.12);}
   .srch-toggle[aria-expanded="true"]{border-color:var(--gold);}
   .srch-toggle svg{width:19px; height:19px; stroke:currentColor; fill:none; stroke-width:2.2; stroke-linecap:round;}
   .srch-panel{
@@ -1589,6 +1600,7 @@
   <ul class="srch-list" id="srchList" role="listbox"></ul>
   <div class="srch-msg" id="srchMsg" hidden></div>
 </div>
+<a class="stats-link" id="statsLink" href="estadisticas.html" title="Estadísticas completas, rankings y comparador" aria-label="Estadísticas completas">📊</a>
 <button class="palette-toggle" id="paletteToggleBtn" type="button" title="Cambiar paleta de colores">🎨</button>
 <div class="palette-panel" id="palettePanel" hidden>
   <h4>Paleta de colores</h4>
@@ -6265,6 +6277,7 @@ void main(){
       '<div class="lb-credit">Estadísticas creadas por <b>SrNixx</b></div>' +
       '<div class="pc-chat"><span>Twitch / Kick</span><b id="pcChat"></b></div>' +
       '<div class="pc-body" id="pcBody"></div>' +
+      '<a class="pc-more" id="pcMore" href="estadisticas.html">📊 Ver ficha completa, gráficos y comparar</a>' +
     '</div>';
   document.body.appendChild(back);
   var pcName = back.querySelector('#pcName'), pcKicker = back.querySelector('#pcKicker'), pcBody = back.querySelector('#pcBody'), pcChat = back.querySelector('#pcChat');
@@ -6273,6 +6286,7 @@ void main(){
   function fill(){
     var p = cur; if(!p) return;
     pcName.textContent = p.name;
+    var more = back.querySelector('#pcMore'); if(more) more.href = 'estadisticas.html#j=' + encodeURIComponent(p.name);
     pcChat.textContent = (chatOf[norm(p.name)] || []).join(' · ');   // si no hay dato, queda vacío
     pcKicker.textContent = ['ESTADÍSTICAS', p.dorsal ? '#' + p.dorsal : '', p.pos].filter(Boolean).join(' · ');
     pcBody.innerHTML =
