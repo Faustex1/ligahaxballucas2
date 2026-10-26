@@ -2015,7 +2015,7 @@
       <div class="config-row">
         <div class="config-field">
           <label for="regSheetInput">Link de Google Sheets</label>
-          <input type="text" id="regSheetInput" value="https://docs.google.com/spreadsheets/d/1jU0kDqb4T1KmYEPZADP34Yv3SKMDWgwl/edit?gid=626732973#gid=626732973" readonly>
+          <input type="text" id="regSheetInput" value="https://docs.google.com/spreadsheets/d/1jU0kDqb4T1KmYEPZADP34Yv3SKMDWgwl/edit?gid=2031953965#gid=2031953965" readonly>
         </div>
       </div>
       <p class="status-msg" id="regSheetStatus"></p>
@@ -4390,7 +4390,7 @@
     const statusEl = document.getElementById('regSheetStatus');
     if(!linkInput) return;
 
-    linkInput.value = 'https://docs.google.com/spreadsheets/d/1jU0kDqb4T1KmYEPZADP34Yv3SKMDWgwl/edit?gid=626732973#gid=626732973';
+    linkInput.value = 'https://docs.google.com/spreadsheets/d/1jU0kDqb4T1KmYEPZADP34Yv3SKMDWgwl/edit?gid=2031953965#gid=2031953965';
     linkInput.readOnly = true;
     LS.set('copa_sheet_link', linkInput.value);
 
@@ -5344,7 +5344,7 @@
 /* ===== TOP 10 en vivo desde Google Sheets (nombres: C2:C11 · puntos: E2:E11) ===== */
 (function(){
   var SHEET_ID = '1jU0kDqb4T1KmYEPZADP34Yv3SKMDWgwl';
-  var GID      = '350989282';
+  var GID      = '291503615';
   var POLL_MS  = 10000;      // se actualiza solo cada 10 s
   var DOCK_MIN = 1520;       // desde este ancho el panel arranca abierto sin tapar el contenido
   var LS_KEY   = 'copa_lb_open';
@@ -5427,7 +5427,7 @@
   }
 
   /* ---------- ESTADÍSTICAS POR JUGADOR (hoja de jugadores: se busca por nombre) ---------- */
-  var STATS_GID = '202140857';
+  var STATS_GID = '1378873171';
   var stats = {};          // nombre normalizado -> { name, played, goals, assists }
   var statsState = 'loading';   // loading | ok | fail
   function norm(s){
@@ -5624,7 +5624,7 @@
 /* ===== LÍDERES POR ESTADÍSTICA en vivo (hoja "Líderes por Estadística": A = categoría · B = jugador · C = cantidad · E:S = top 10 de cada estadística) ===== */
 (function(){
   var SHEET_ID = '1jU0kDqb4T1KmYEPZADP34Yv3SKMDWgwl';
-  var GID      = '374715280';
+  var GID      = '827043866';
   var POLL_MS  = 10000;
   var DOCK_MIN = 1520;
   var LS_KEY   = 'copa_lbl_open';
@@ -6070,7 +6070,7 @@ void main(){
 /* ===== BUSCADOR DE JUGADORES (hoja de estadísticas por jugador) ===== */
 (function(){
   var SHEET_ID = '1jU0kDqb4T1KmYEPZADP34Yv3SKMDWgwl';
-  var GID = '202140857';
+  var GID = '1378873171';
   var POLL_MS = 60000;
   /* campo -> [encabezado en la hoja, columna de respaldo si no se puede leer el encabezado] */
   var COLS = {
@@ -6148,7 +6148,7 @@ void main(){
     return next();
   }
   /* ---------- hoja de usuarios: nombre de Haxball (col. B) -> usuario de Twitch/Kick del chat (col. A) ---------- */
-  var USERS_GID = '626732973';
+  var USERS_GID = '2031953965';
   var chatOf = {};   // nombre de haxball normalizado -> [usuarios de chat]
   function parseUsers(txt){
     var rows = parseCSV(txt), cChat = 0, cHax = 1, start = 0;
