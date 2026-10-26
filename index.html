@@ -5344,7 +5344,7 @@
 /* ===== TOP 10 en vivo desde Google Sheets (nombres: C2:C11 · puntos: E2:E11) ===== */
 (function(){
   var SHEET_ID = '1jU0kDqb4T1KmYEPZADP34Yv3SKMDWgwl';
-  var GID      = '291503615';
+  var GID      = '1378873171';
   var POLL_MS  = 10000;      // se actualiza solo cada 10 s
   var DOCK_MIN = 1520;       // desde este ancho el panel arranca abierto sin tapar el contenido
   var LS_KEY   = 'copa_lb_open';
@@ -5427,7 +5427,7 @@
   }
 
   /* ---------- ESTADÍSTICAS POR JUGADOR (hoja de jugadores: se busca por nombre) ---------- */
-  var STATS_GID = '1378873171';
+  var STATS_GID = '291503615';
   var stats = {};          // nombre normalizado -> { name, played, goals, assists }
   var statsState = 'loading';   // loading | ok | fail
   function norm(s){
@@ -6070,7 +6070,7 @@ void main(){
 /* ===== BUSCADOR DE JUGADORES (hoja de estadísticas por jugador) ===== */
 (function(){
   var SHEET_ID = '1jU0kDqb4T1KmYEPZADP34Yv3SKMDWgwl';
-  var GID = '1378873171';
+  var GID = '291503615';
   var POLL_MS = 60000;
   /* campo -> [encabezado en la hoja, columna de respaldo si no se puede leer el encabezado] */
   var COLS = {
